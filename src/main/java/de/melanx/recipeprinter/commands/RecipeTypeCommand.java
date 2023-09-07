@@ -13,6 +13,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
 import org.moddingx.libx.render.target.ImageHelper;
 
@@ -29,16 +30,15 @@ public class RecipeTypeCommand implements Command<CommandSourceStack> {
     @Override
     public int run(CommandContext<CommandSourceStack> context) {
         String typeName = StringArgumentType.getString(context, "type");
-        //noinspection deprecation
-        RecipeType<?> type = BuiltInRegistries.RECIPE_TYPE.get(new ResourceLocation(typeName));
-        List<Recipe<?>> list = context.getSource().getServer().getRecipeManager().recipes.get(type).values().stream().toList();
+        RecipeType<?> type = BuiltInRegistries.RECIPE_TYPE.get(ResourceLocation.tryParse(typeName));
+        List<RecipeHolder<?>> list = List.copyOf(context.getSource().getServer().getRecipeManager().byType.get(type));
         if (list.isEmpty()) {
             return 0;
         }
 
-        for (Recipe<?> recipe : list) {
-            IRecipeRender<? extends Recipe<?>> render = RecipeRenderers.getRecipeRender(recipe);
-            Path path = context.getSource().getServer().getServerDirectory().toPath().resolve(RecipePrinter.getInstance().modid).resolve("recipes").resolve(recipe.getId().getNamespace()).resolve(recipe.getId().getPath().replace('/', File.separatorChar) + ".png");
+        for (RecipeHolder<?> recipeHolder : list) {
+            IRecipeRender<? extends Recipe<?>> render = RecipeRenderers.getRecipeRender(recipeHolder.value());
+            Path path = context.getSource().getServer().getServerDirectory().resolve(RecipePrinter.getInstance().modid).resolve("recipes").resolve(recipeHolder.id().getNamespace()).resolve(recipeHolder.id().getPath().replace('/', File.separatorChar) + ".png");
             if (!Files.exists(path.getParent())) {
                 try {
                     Files.createDirectories(path.getParent());
@@ -47,9 +47,9 @@ public class RecipeTypeCommand implements Command<CommandSourceStack> {
                 }
             }
 
-            CompletableFuture<NativeImage> img = ImageHelper.render(new PrinterJob(render.getRecipeWidth(), render.getRecipeHeight(), (int) render.getScaleFactor(), (poseStack, buffer) -> {
+            CompletableFuture<NativeImage> img = ImageHelper.render(new PrinterJob(render.getRecipeWidth(), render.getRecipeHeight(), (int) render.getScaleFactor(), guiGraphics -> {
                 //noinspection unchecked
-                ((IRecipeRender<Recipe<?>>) render).render(recipe, poseStack, buffer);
+                ((IRecipeRender<Recipe<?>>) render).render(recipeHolder.value(), guiGraphics);
             }));
 
             try {
@@ -59,7 +59,7 @@ public class RecipeTypeCommand implements Command<CommandSourceStack> {
             }
         }
 
-        context.getSource().sendSuccess(Component.literal("Started rendering " + list.size() + " recipes."), true);
+        context.getSource().sendSuccess(() -> Component.literal("Started rendering " + list.size() + " recipes."), true);
 
         return 0;
     }
