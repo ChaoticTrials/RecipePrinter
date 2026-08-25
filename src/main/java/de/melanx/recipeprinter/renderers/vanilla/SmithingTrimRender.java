@@ -3,7 +3,7 @@ package de.melanx.recipeprinter.renderers.vanilla;
 import de.melanx.recipeprinter.IRecipeRender;
 import de.melanx.recipeprinter.util.RenderHelperMod;
 import de.melanx.recipeprinter.util.Util;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SmithingTrimRecipe;
 import org.jetbrains.annotations.Nullable;
@@ -31,9 +31,9 @@ public class SmithingTrimRender implements IRecipeRender<SmithingTrimRecipe> {
     }
 
     @Override
-    public void render(SmithingTrimRecipe recipe, GuiGraphics guiGraphics) {
+    public void render(SmithingTrimRecipe recipe, GuiGraphicsExtractor guiGraphics) {
         RenderHelperMod.renderBackground(SmithingTransformRender.BACKGROUND_TEXTURE, guiGraphics, 15, 5, 140, 63, true);
-        guiGraphics.pose().translate(0, 0, 10);
+        guiGraphics.pose().translate(0, 0);
         RenderHelperMod.renderSlot(guiGraphics, 61, 42);
         RenderHelperMod.renderIngredient(guiGraphics, recipe.base, 12, 42);
         RenderHelperMod.renderIngredient(guiGraphics, recipe.addition, 61, 42);

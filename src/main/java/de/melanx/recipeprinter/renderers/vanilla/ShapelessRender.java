@@ -1,22 +1,22 @@
 package de.melanx.recipeprinter.renderers.vanilla;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import de.melanx.recipeprinter.IRecipeRender;
 import de.melanx.recipeprinter.util.OverlayIcon;
 import de.melanx.recipeprinter.util.RenderHelperMod;
 import de.melanx.recipeprinter.util.Util;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
+import org.joml.Matrix3x2fStack;
 
 import javax.annotation.Nullable;
 import java.util.List;
 
 public class ShapelessRender implements IRecipeRender<ShapelessRecipe> {
 
-    public static final ResourceLocation BACKGROUND_TEXTURE = ResourceLocation.withDefaultNamespace("textures/gui/container/crafting_table.png");
+    public static final Identifier BACKGROUND_TEXTURE = Identifier.withDefaultNamespace("textures/gui/container/crafting_table.png");
 
     @Override
     public Class<ShapelessRecipe> getRecipeClass() {
@@ -40,16 +40,16 @@ public class ShapelessRender implements IRecipeRender<ShapelessRecipe> {
     }
 
     @Override
-    public void render(ShapelessRecipe recipe, GuiGraphics guiGraphics) {
-        PoseStack poseStack = guiGraphics.pose();
+    public void render(ShapelessRecipe recipe, GuiGraphicsExtractor guiGraphics) {
+        Matrix3x2fStack poseStack = guiGraphics.pose();
         RenderHelperMod.renderBackground(BACKGROUND_TEXTURE, guiGraphics, 25, 12, 124, 62, true);
-        poseStack.pushPose();
-        poseStack.translate(108, 4, 0);
-        poseStack.scale(1f / 3, 1f / 3, 1);
+        poseStack.pushMatrix();
+        poseStack.translate(108, 4);
+        poseStack.scale(1f / 3, 1f / 3);
         RenderHelperMod.render(OverlayIcon.SHAPELESS, guiGraphics, 0, 0);
-        poseStack.popPose();
+        poseStack.popMatrix();
         RenderHelperMod.renderItem(guiGraphics, Util.getResultItem(recipe), 99, 23);
-        List<Ingredient> ingredients = recipe.getIngredients();
+        List<Ingredient> ingredients = recipe.placementInfo().ingredients();
         int max = ingredients.size() > 4 ? 3 : 2;
         for (int x = 0; x < max; x++) {
             for (int y = 0; y < max; y++) {

@@ -4,15 +4,15 @@ import de.melanx.recipeprinter.IRecipeRender;
 import de.melanx.recipeprinter.RecipePrinter;
 import de.melanx.recipeprinter.util.RenderHelperMod;
 import de.melanx.recipeprinter.util.Util;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.*;
 
 import javax.annotation.Nullable;
 
 public class SmithingTransformRender implements IRecipeRender<SmithingRecipe> {
 
-    public static final ResourceLocation BACKGROUND_TEXTURE = ResourceLocation.fromNamespaceAndPath("minecraft", "textures/gui/container/smithing.png");
+    public static final Identifier BACKGROUND_TEXTURE = Identifier.fromNamespaceAndPath("minecraft", "textures/gui/container/smithing.png");
 
     @Override
     public Class<SmithingRecipe> getRecipeClass() {
@@ -36,9 +36,9 @@ public class SmithingTransformRender implements IRecipeRender<SmithingRecipe> {
     }
 
     @Override
-    public void render(SmithingRecipe recipe, GuiGraphics guiGraphics) {
+    public void render(SmithingRecipe recipe, GuiGraphicsExtractor guiGraphics) {
         RenderHelperMod.renderBackground(BACKGROUND_TEXTURE, guiGraphics, 3, 4, 116, 65, true);
-        guiGraphics.pose().translate(0, 0, 10);
+        guiGraphics.pose().translate(0, 0);
         RenderHelperMod.renderIngredient(guiGraphics, getTemplate(recipe), 5, 44);
         RenderHelperMod.renderIngredient(guiGraphics, getBase(recipe), 23, 44);
         RenderHelperMod.renderIngredient(guiGraphics, getAddition(recipe), 41, 44);
@@ -47,14 +47,14 @@ public class SmithingTransformRender implements IRecipeRender<SmithingRecipe> {
 
     private static Ingredient getTemplate(SmithingRecipe recipe) {
         if (recipe instanceof SmithingTransformRecipe transformRecipe) {
-            return transformRecipe.template;
+            return transformRecipe.template.orElseGet(Ingredient::of);
         }
 
         if (recipe instanceof SmithingTrimRecipe trimRecipe) {
             return trimRecipe.template;
         }
 
-        return Ingredient.EMPTY;
+        return Ingredient.of();
     }
 
     private static Ingredient getBase(SmithingRecipe recipe) {
@@ -67,12 +67,12 @@ public class SmithingTransformRender implements IRecipeRender<SmithingRecipe> {
         }
 
         RecipePrinter.getInstance().logger.warn("Unknown smithing recipe: " + recipe.getClass().getCanonicalName());
-        return Ingredient.EMPTY;
+        return Ingredient.of();
     }
 
     private static Ingredient getAddition(SmithingRecipe recipe) {
         if (recipe instanceof SmithingTransformRecipe transformRecipe) {
-            return transformRecipe.addition;
+            return transformRecipe.addition.orElseGet(Ingredient::of);
         }
 
         if (recipe instanceof SmithingTrimRecipe trimRecipe) {
@@ -80,6 +80,6 @@ public class SmithingTransformRender implements IRecipeRender<SmithingRecipe> {
         }
 
         RecipePrinter.getInstance().logger.warn("Unknown smithing recipe: " + recipe.getClass().getCanonicalName());
-        return Ingredient.EMPTY;
+        return Ingredient.of();
     }
 }

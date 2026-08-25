@@ -1,14 +1,8 @@
 package de.melanx.recipeprinter.util;
 
-import com.mojang.blaze3d.platform.Lighting;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexSorting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.MultiBufferSource;
-import org.joml.Matrix4f;
-import org.joml.Matrix4fStack;
 import org.moddingx.libx.render.target.RenderJob;
 
 import java.util.function.Consumer;
@@ -18,9 +12,9 @@ public class PrinterJob implements RenderJob {
     private final int width;
     private final int height;
     private final int scale;
-    private final Consumer<GuiGraphics> renderFunc;
+    private final Consumer<GuiGraphicsExtractor> renderFunc;
 
-    public PrinterJob(int width, int height, int scale, Consumer<GuiGraphics> renderFunc) {
+    public PrinterJob(int width, int height, int scale, Consumer<GuiGraphicsExtractor> renderFunc) {
         this.width = width;
         this.height = height;
         this.scale = Math.max(1, scale);
@@ -38,28 +32,22 @@ public class PrinterJob implements RenderJob {
     }
 
     @Override
-    public Matrix4f setupModelViewMatrix() {
-        return new Matrix4f().translate(0, 0, -(1000 - GuiGraphics.MIN_GUI_Z));
+    public void render(PoseStack poseStack, MultiBufferSource buffer) {
+        // All content is drawn via renderGui; this job has no 3D-scene content of its own.
     }
 
     @Override
-    public void render(PoseStack ignored, MultiBufferSource buffer) {
-        MultiBufferSource.BufferSource bs = (MultiBufferSource.BufferSource) buffer;
+    public boolean usesGui() {
+        return true;
+    }
 
-        // ✅ Use an ortho that actually contains the Z you draw at (0..100)
-        Matrix4f proj = new Matrix4f().setOrtho(0f, (float) this.width, (float) this.height, 0f, GuiGraphics.MIN_GUI_Z, GuiGraphics.MAX_GUI_Z);
-        RenderSystem.setProjectionMatrix(proj, VertexSorting.ORTHOGRAPHIC_Z);
-
-        Matrix4fStack mv = RenderSystem.getModelViewStack();
-        mv.identity();
-        RenderSystem.applyModelViewMatrix();
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(true);
-        Lighting.setupFor3DItems();
-
-        GuiGraphics guiGraphics = new GuiGraphics(Minecraft.getInstance(), bs);
-
+    @Override
+    public void renderGui(GuiGraphicsExtractor guiGraphics) {
+        // The bridge's viewport is unscaled (guiScale 1), so we bake this job's scale into the pose
+        // stack ourselves; render functions are written in logical (unscaled) pixel coordinates.
+        guiGraphics.pose().pushMatrix();
+        guiGraphics.pose().scale(this.scale, this.scale);
         this.renderFunc.accept(guiGraphics);
-        guiGraphics.flush();
+        guiGraphics.pose().popMatrix();
     }
 }

@@ -13,7 +13,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.neoforged.fml.ModList;
@@ -31,11 +31,11 @@ public class RecipePrinterCommands {
     public static final SuggestionProvider<CommandSourceStack> TABS = ((context, builder) -> SharedSuggestionProvider
             .suggest(CreativeModeTabs.allTabs().stream().filter(Util::isNormalItemCategory).map(group -> ("\"" + group.getDisplayName().getString() + "\"")), builder));
     public static final SuggestionProvider<CommandSourceStack> RECIPE_TYPES = ((context, builder) -> {
-        Optional<Registry<RecipeType<?>>> registry = context.getSource().getServer().registryAccess().registry(Registries.RECIPE_TYPE);
+        Optional<Registry<RecipeType<?>>> registry = context.getSource().getServer().registryAccess().lookup(Registries.RECIPE_TYPE);
         return registry.map(recipeTypes -> SharedSuggestionProvider.suggest(recipeTypes.stream().filter(RecipeRenderers::isSupported).map(Object::toString), builder)).orElse(null);
     });
     public static final SuggestionProvider<CommandSourceStack> RECIPES = (context, builder) ->
-            suggestRecipes(context.getSource().getRecipeNames(), builder);
+            suggestRecipes(context.getSource().getServer().getRecipeManager().recipeMap().values().stream().map(h->h.id().identifier()), builder);
 
     public static void register(RegisterCommandsEvent event) {
         LiteralArgumentBuilder<CommandSourceStack> hand = Commands.literal("hand")
@@ -68,10 +68,10 @@ public class RecipePrinterCommands {
     }
 
     private static CompletableFuture<Suggestions> suggestRecipes(
-            Stream<ResourceLocation> recipeNames, SuggestionsBuilder builder) {
-        List<ResourceLocation> recipes = recipeNames
+            Stream<Identifier> recipeNames, SuggestionsBuilder builder) {
+        List<Identifier> recipes = recipeNames
                 .distinct()
-                .sorted(Comparator.comparing(ResourceLocation::toString))
+                .sorted(Comparator.comparing(Identifier::toString))
                 .toList();
         String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
 
@@ -80,7 +80,7 @@ public class RecipePrinterCommands {
         }
 
         recipes.stream()
-                .map(ResourceLocation::getNamespace)
+                .map(Identifier::getNamespace)
                 .distinct()
                 .map(namespace -> namespace + ":*")
                 .filter(wildcard -> wildcard.startsWith(remaining))

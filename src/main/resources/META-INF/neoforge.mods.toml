@@ -31,7 +31,7 @@ Converts recipes into nice looking images
 [[dependencies.${mod.modid}]]
     modId="libx"
     type="required"
-    versionRange="[1.21.1-6.0.13,)"
+    versionRange="[26.1.2-7.0.1,)"
     ordering="AFTER"
     side="BOTH"
 

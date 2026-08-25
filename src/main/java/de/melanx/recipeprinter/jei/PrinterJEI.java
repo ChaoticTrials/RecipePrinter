@@ -1,11 +1,11 @@
 package de.melanx.recipeprinter.jei;
 
+import com.mojang.logging.annotations.MethodsReturnNonnullByDefault;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.library.load.registration.RecipeCategoryRegistration;
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -18,8 +18,8 @@ public class PrinterJEI implements IModPlugin {
     public static RecipeCategoryRegistration REG = null;
 
     @Override
-    public ResourceLocation getPluginUid() {
-        return ResourceLocation.fromNamespaceAndPath("recipeprinter", "fake_plugin");
+    public Identifier getPluginUid() {
+        return Identifier.fromNamespaceAndPath("recipeprinter", "fake_plugin");
     }
 
     @Override

@@ -5,10 +5,12 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 
 import java.util.List;
 
@@ -23,12 +25,13 @@ public record HandCommand(boolean fromJei) implements Command<CommandSourceStack
         }
 
         RecipeManager recipeManager = context.getSource().getServer().getRecipeManager();
-        List<ResourceLocation> recipes = recipeManager.getRecipes().stream()
-                .filter(holder -> ItemStack.isSameItem(
-                        heldItem,
-                        holder.value().getResultItem(context.getSource().registryAccess())
-                ))
-                .map(RecipeHolder::id)
+        ServerLevel level = context.getSource().getLevel();
+        ContextMap displayContext = SlotDisplayContext.fromLevel(level);
+
+        List<RecipeHolder<?>> recipes = recipeManager.getRecipes().stream()
+                .filter(holder -> holder.value().display().stream()
+                        .flatMap(display -> display.result().resolveForStacks(displayContext).stream())
+                        .anyMatch(stack -> ItemStack.isSameItem(heldItem, stack)))
                 .toList();
 
         if (recipes.isEmpty()) {

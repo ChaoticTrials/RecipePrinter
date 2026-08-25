@@ -11,8 +11,8 @@ import de.melanx.recipeprinter.util.PrinterJob;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
 import org.moddingx.libx.render.target.ImageHelper;
@@ -39,14 +39,14 @@ public class RecipeCommand implements Command<CommandSourceStack> {
         return RecipeCommand.render(context, sel.getRecipes(rm));
     }
 
-    public static int render(CommandContext<CommandSourceStack> context, List<ResourceLocation> rls) {
+    public static int render(CommandContext<CommandSourceStack> context, List<RecipeHolder<?>> rls) {
         RecipeManager rm = context.getSource().getServer().getRecipeManager();
 
         Set<RecipeType<?>> typesNotSupported = new HashSet<>();
         AtomicInteger recipesTotal = new AtomicInteger();
         AtomicInteger recipesStarted = new AtomicInteger();
-        for (ResourceLocation rl : rls) {
-            rm.byKey(rl).ifPresent(recipeHolder -> {
+        for (RecipeHolder<?> rl : rls) {
+            rm.byKey(rl.id()).ifPresent(recipeHolder -> {
                 Recipe<?> recipe = recipeHolder.value();
                 recipesTotal.addAndGet(1);
                 IRecipeRender<?> render = RecipeRenderers.getRecipeRender(recipe);
@@ -54,7 +54,7 @@ public class RecipeCommand implements Command<CommandSourceStack> {
                     typesNotSupported.add(recipe.getType());
                 } else {
                     recipesStarted.addAndGet(1);
-                    Path path = context.getSource().getServer().getServerDirectory().resolve(RecipePrinter.getInstance().modid).resolve("recipes").resolve(rl.getNamespace()).resolve(rl.getPath().replace('/', File.separatorChar) + ".png");
+                    Path path = context.getSource().getServer().getServerDirectory().resolve(RecipePrinter.getInstance().modid).resolve("recipes").resolve(rl.id().identifier().getNamespace()).resolve(rl.id().identifier().getPath().replace('/', File.separatorChar) + ".png");
                     if (!Files.exists(path.getParent())) {
                         try {
                             Files.createDirectories(path.getParent());

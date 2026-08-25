@@ -2,7 +2,7 @@ package de.melanx.recipeprinter.renderers.vanilla;
 
 import de.melanx.recipeprinter.IRecipeRender;
 import de.melanx.recipeprinter.util.RenderHelperMod;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.CampfireCookingRecipe;
@@ -34,7 +34,7 @@ public class CampfireRender implements IRecipeRender<CampfireCookingRecipe> {
     }
 
     @Override
-    public void render(CampfireCookingRecipe recipe, GuiGraphics guiGraphics) {
+    public void render(CampfireCookingRecipe recipe, GuiGraphicsExtractor guiGraphics) {
         SmeltingRender.commonRender(recipe, guiGraphics);
         RenderHelperMod.renderItem(guiGraphics, new ItemStack(Items.CAMPFIRE), 5, 41);
     }

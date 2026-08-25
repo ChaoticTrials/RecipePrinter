@@ -1,17 +1,8 @@
 package de.melanx.recipeprinter.util;
 
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.pipeline.TextureTarget;
-import com.mojang.blaze3d.platform.Lighting;
-import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexSorting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.FogRenderer;
-import net.minecraft.client.renderer.RenderBuffers;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
@@ -19,18 +10,13 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.display.RecipeDisplay;
+import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.phys.Vec2;
-import org.joml.Matrix4f;
-import org.lwjgl.opengl.GL11;
-import org.moddingx.libx.impl.render.JobRenderer;
 import org.moddingx.libx.render.RenderHelper;
-import org.moddingx.libx.render.target.RenderJob;
-import org.moddingx.libx.render.target.RenderJobFailedException;
 
-import javax.annotation.Nullable;
-import java.awt.Color;
+import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 public class Util {
 
@@ -40,7 +26,15 @@ public class Util {
             throw new NullPointerException("level must not be null.");
         }
 
-        return recipe.getResultItem(level.registryAccess());
+        // Recipe#assemble(T) takes the actual crafting input (e.g. the crafting grid contents), not a
+        // registry/level context - passing null there isn't valid for recipe types that inspect it.
+        // #display() is the modern, input-independent way to get a representative result for display.
+        List<RecipeDisplay> displays = recipe.display();
+        if (displays.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+
+        return displays.get(0).result().resolveForFirstStack(SlotDisplayContext.fromLevel(level));
     }
 
     public static boolean isNormalItemCategory(CreativeModeTab category) {
@@ -48,10 +42,10 @@ public class Util {
         return resourceKey.filter(creativeModeTabResourceKey -> !category.isAlignedRight() && creativeModeTabResourceKey != CreativeModeTabs.HOTBAR && creativeModeTabResourceKey != CreativeModeTabs.INVENTORY && creativeModeTabResourceKey != CreativeModeTabs.SEARCH).isPresent();
     }
 
-    public static void renderItemCategory(GuiGraphics guiGraphics, NonNullList<ItemStack> stacks, int rows, int itemsPerRow, CreativeModeTab category) {
+    public static void renderItemCategory(GuiGraphicsExtractor guiGraphics, NonNullList<ItemStack> stacks, int rows, int itemsPerRow, CreativeModeTab category) {
         RenderHelperMod.renderDefaultBackground(guiGraphics, itemsPerRow * 18 + 8, rows * 18 + 24);
         RenderHelperMod.renderItem(guiGraphics, category.getIconItem(), 5, 3);
-        guiGraphics.drawString(Minecraft.getInstance().font, category.getDisplayName().getString(), 25, 8, Color.DARK_GRAY.getRGB() & 0xFFFFFF, false);
+        guiGraphics.text(Minecraft.getInstance().font, category.getDisplayName().getString(), 25, 8, RenderHelperMod.TEXT_COLOR, false);
         RenderHelper.resetColor();
         for (int y = 0; y < rows; y++) {
             for (int x = 0; x < itemsPerRow; x++) {

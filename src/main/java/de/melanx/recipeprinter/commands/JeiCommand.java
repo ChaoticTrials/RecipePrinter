@@ -10,18 +10,25 @@ import de.melanx.recipeprinter.jei.PrinterJEI;
 import de.melanx.recipeprinter.util.PrinterJob;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import mezz.jei.api.gui.drawable.IScalableDrawable;
+import mezz.jei.api.gui.ingredient.IRecipeSlotView;
+import mezz.jei.api.ingredients.ITypedIngredient;
+import mezz.jei.api.recipe.IFocus;
+import mezz.jei.api.recipe.IFocusFactory;
+import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import mezz.jei.common.Internal;
 import mezz.jei.common.gui.elements.DrawableBlank;
 import mezz.jei.library.focus.FocusGroup;
 import mezz.jei.library.gui.recipes.RecipeLayout;
+import mezz.jei.library.ingredients.IIngredientManagerInternal;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import org.moddingx.libx.render.target.ImageHelper;
 
 import java.io.IOException;
@@ -38,30 +45,27 @@ public class JeiCommand implements Command<CommandSourceStack> {
         RecipeSelector sel = new RecipeSelector(StringArgumentType.getString(context, "recipes"));
         //noinspection ConstantConditions
         RecipeManager rm = Minecraft.getInstance().getSingleplayerServer().getRecipeManager();
-        List<ResourceLocation> recipes = sel.getRecipes(rm);
+        List<RecipeHolder<?>> recipes = sel.getRecipes(rm);
         return JeiCommand.render(context, recipes);
     }
 
-    public static int render(CommandContext<CommandSourceStack> context, List<ResourceLocation> recipes) {
+    public static int render(CommandContext<CommandSourceStack> context, List<RecipeHolder<?>> recipes) {
         if (PrinterJEI.REG == null) {
             context.getSource().sendFailure(Component.literal("JEI recipe categories are not available yet."));
             return 0;
         }
 
-        //noinspection ConstantConditions
-        RecipeManager rm = Minecraft.getInstance().getSingleplayerServer().getRecipeManager();
         List<IRecipeCategory<?>> categories = PrinterJEI.REG.getRecipeCategories();
+        IFocusFactory focusFactory = PrinterJEI.REG.getJeiHelpers().getFocusFactory();
 
         int rendered = 0;
-        Set<ResourceLocation> failedRecipes = new LinkedHashSet<>();
-        for (ResourceLocation rl : recipes) {
-            RecipeHolder<?> recipeHolder = rm.byKey(rl).orElse(null);
+        Set<Identifier> failedRecipes = new LinkedHashSet<>();
+        for (RecipeHolder<?> recipeHolder : recipes) {
             if (recipeHolder == null) {
-                failedRecipes.add(rl);
                 continue;
             }
 
-            ResourceLocation recipeType = BuiltInRegistries.RECIPE_TYPE.getKey(recipeHolder.value().getType());
+            Identifier recipeType = BuiltInRegistries.RECIPE_TYPE.getKey(recipeHolder.value().getType());
             boolean recipeRendered = false;
             for (IRecipeCategory<?> recipeCategory : categories) {
                 if (!recipeCategory.getRecipeType().getUid().equals(recipeType)) {
@@ -69,27 +73,51 @@ public class JeiCommand implements Command<CommandSourceStack> {
                 }
 
                 try {
-                    Optional<IRecipeLayoutDrawable<Object>> optLayout = JeiCommand.createLayout(recipeCategory, recipeHolder);
-                    if (optLayout.isEmpty()) {
+                    // Build once, unfocused, purely to discover each slot's candidate ingredients and their order.
+                    Optional<IRecipeLayoutDrawable<Object>> discoveryOpt = JeiCommand.createLayout(recipeCategory, recipeHolder, FocusGroup.EMPTY);
+                    if (discoveryOpt.isEmpty()) {
                         RecipePrinter.getInstance().logger.error("JEI could not create a layout for recipe {}", recipeHolder.id());
                         continue;
+                    }
+
+                    // Any slot with more than one candidate ingredient (e.g. a tag) gets pinned to its first
+                    // candidate via a focus, so the displayed item is deterministic instead of relying on
+                    // JEI's own (wall-clock-based) cycling, which could show any tag member.
+                    List<IFocus<?>> pins = new ArrayList<>();
+                    for (IRecipeSlotView slotView : discoveryOpt.get().getRecipeSlotsView().getSlotViews()) {
+                        List<ITypedIngredient<?>> candidates = slotView.getAllIngredientsList().stream().filter(Objects::nonNull).toList();
+                        if (candidates.size() > 1) {
+                            //noinspection unchecked,rawtypes
+                            pins.add(focusFactory.createFocus(slotView.getRole(), (ITypedIngredient) candidates.getFirst()));
+                        }
+                    }
+
+                    IRecipeLayoutDrawable<Object> layout;
+                    if (pins.isEmpty()) {
+                        layout = discoveryOpt.get();
+                    } else {
+                        IFocusGroup focusGroup = focusFactory.createFocusGroup(pins);
+                        Optional<IRecipeLayoutDrawable<Object>> pinnedOpt = JeiCommand.createLayout(recipeCategory, recipeHolder, focusGroup);
+                        if (pinnedOpt.isEmpty()) {
+                            continue;
+                        }
+                        layout = pinnedOpt.get();
                     }
 
                     Path path = context.getSource().getServer().getServerDirectory()
                             .resolve(RecipePrinter.getInstance().modid)
                             .resolve("jei")
-                            .resolve(rl.getNamespace())
+                            .resolve(recipeHolder.id().identifier().getNamespace())
                             .resolve(recipeCategory.getClass().getSimpleName())
-                            .resolve(rl.getPath().replaceAll("([^/]*/)*", "") + ".png");
+                            .resolve(recipeHolder.id().identifier().getPath().replaceAll("([^/]*/)*", "") + ".png");
                     if (!Files.exists(path.getParent())) {
                         Files.createDirectories(path.getParent());
                     }
 
-                    IRecipeLayoutDrawable<Object> layout = optLayout.get();
                     CompletableFuture<NativeImage> img = ImageHelper.render(new PrinterJob(recipeCategory.getWidth() + 8, recipeCategory.getHeight() + 8, ModConfig.scale,
                             guiGraphics -> {
                                 RecipePrinter.getInstance().logger.debug("Printing {} {}", recipeCategory.getRecipeType().getUid(), recipeHolder.id());
-                                guiGraphics.pose().translate(4, 4, 0);
+                                guiGraphics.pose().translate(4, 4);
                                 layout.drawRecipe(guiGraphics, -10, -10);
                             }));
                     img.get().writeToFile(path);
@@ -102,11 +130,10 @@ public class JeiCommand implements Command<CommandSourceStack> {
                 } catch (IOException | ExecutionException | RuntimeException e) {
                     RecipePrinter.getInstance().logger.error("Could not print recipe {}: {}", recipeHolder.id(), e.getMessage());
                 }
-
             }
 
             if (!recipeRendered) {
-                failedRecipes.add(recipeHolder.id());
+                failedRecipes.add(recipeHolder.id().identifier());
             }
         }
 
@@ -119,7 +146,7 @@ public class JeiCommand implements Command<CommandSourceStack> {
 
         if (!failedRecipes.isEmpty()) {
             context.getSource().sendFailure(Component.literal("Failed to render " + failedRecipes.size() + " recipes:"));
-            for (ResourceLocation failedRecipe : failedRecipes) {
+            for (Identifier failedRecipe : failedRecipes) {
                 context.getSource().sendFailure(Component.literal("- " + failedRecipe));
             }
         }
@@ -127,7 +154,7 @@ public class JeiCommand implements Command<CommandSourceStack> {
         return rendered;
     }
 
-    private static Optional<IRecipeLayoutDrawable<Object>> createLayout(IRecipeCategory<?> category, RecipeHolder<?> recipe) {
+    private static Optional<IRecipeLayoutDrawable<Object>> createLayout(IRecipeCategory<?> category, RecipeHolder<?> recipe, IFocusGroup focusGroup) {
         IScalableDrawable recipeBackground;
         int borderPadding;
         if (category.needsRecipeBorder()) {
@@ -139,7 +166,11 @@ public class JeiCommand implements Command<CommandSourceStack> {
         }
 
         //noinspection unchecked
-        return RecipeLayout.create((IRecipeCategory<Object>) category, Collections.emptyList(), recipe, FocusGroup.EMPTY,
-                PrinterJEI.REG.getJeiHelpers().getIngredientManager(), recipeBackground, borderPadding);
+        IRecipeCategory<Object> objCategory = (IRecipeCategory<Object>) category;
+        // The public IIngredientManager returned here is always also the internal one RecipeLayout needs;
+        // JEI just doesn't expose that supertype through the public IJeiHelpers API.
+        IIngredientManagerInternal ingredientManager = (IIngredientManagerInternal) PrinterJEI.REG.getJeiHelpers().getIngredientManager();
+        return RecipeLayout.create(objCategory, Collections.emptyList(), recipe, focusGroup,
+                ingredientManager, recipeBackground, borderPadding, SlotDisplayContext.fromLevel(Minecraft.getInstance().level));
     }
 }

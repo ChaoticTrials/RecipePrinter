@@ -2,7 +2,7 @@ package de.melanx.recipeprinter.renderers.vanilla;
 
 import de.melanx.recipeprinter.IRecipeRender;
 import de.melanx.recipeprinter.util.RenderHelperMod;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -34,7 +34,7 @@ public class SmokingRender implements IRecipeRender<SmokingRecipe> {
     }
 
     @Override
-    public void render(SmokingRecipe recipe, GuiGraphics guiGraphics) {
+    public void render(SmokingRecipe recipe, GuiGraphicsExtractor guiGraphics) {
         SmeltingRender.commonRender(recipe, guiGraphics);
         RenderHelperMod.renderItem(guiGraphics, new ItemStack(Items.SMOKER), 5, 41);
     }

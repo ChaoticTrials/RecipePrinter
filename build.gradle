@@ -1,5 +1,5 @@
 plugins {
-    id 'org.moddingx.modgradle.meta' version '5.1.4'
+    id 'org.moddingx.modgradle.meta' version '5.1.5'
 }
 
 repositories {
@@ -10,9 +10,9 @@ repositories {
 }
 
 var dev = System.getenv('IS_DEV')?.toBoolean() ?: false
-var baseVersion = '21.1'
-var libxVersion = '1.21.1-6.0.13'
-var jeiVersion = '19.21.0.247'
+var baseVersion = '26.1'
+var libxVersion = '26.1.2-7.0.1'
+var jeiVersion = '29.29.0.77'
 
 mod.configure {
     modid 'recipeprinter'
@@ -27,7 +27,7 @@ mod.configure {
         }
     }
 
-    neoforge project.hasProperty('neo_version') ? project.neo_version : "${baseVersion}.213"
+    neoforge project.hasProperty('neo_version') ? project.neo_version : "${baseVersion}.2.96"
 
     license 'The Apache License, Version 2.0'
     github 'ChaoticTrials/RecipePrinter'
@@ -57,8 +57,10 @@ mod.configure {
     upload {
         all {
             type 'release'
+            version '26.1.2'
             require 'libx'
             optional 'jei'
+            environmentType 'client_only'
         }
         curseforge {
             projectId 409823
@@ -73,5 +75,5 @@ dependencies {
     annotationProcessor "org.moddingx:LibX:${libxVersion}"
 
     implementation "org.moddingx:LibX:${libxVersion}"
-    implementation "mezz.jei:jei-1.${baseVersion}-neoforge:${jeiVersion}"
+    implementation "mezz.jei:jei-${baseVersion}.2-neoforge:${jeiVersion}"
 }
