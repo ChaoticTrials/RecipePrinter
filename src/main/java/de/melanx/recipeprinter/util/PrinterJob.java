@@ -1,6 +1,7 @@
 package de.melanx.recipeprinter.util;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.MultiBufferSource;
 import org.moddingx.libx.render.target.RenderJob;
@@ -43,11 +44,7 @@ public class PrinterJob implements RenderJob {
 
     @Override
     public void renderGui(GuiGraphicsExtractor guiGraphics) {
-        // The bridge's viewport is unscaled (guiScale 1), so we bake this job's scale into the pose
-        // stack ourselves; render functions are written in logical (unscaled) pixel coordinates.
-        guiGraphics.pose().pushMatrix();
-        guiGraphics.pose().scale(this.scale, this.scale);
+        Minecraft.getInstance().gameRenderer.getGameRenderState().windowRenderState.guiScale = this.scale;
         this.renderFunc.accept(guiGraphics);
-        guiGraphics.pose().popMatrix();
     }
 }
